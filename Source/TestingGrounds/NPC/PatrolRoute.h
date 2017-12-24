@@ -17,7 +17,7 @@ class TESTINGGROUNDS_API UPatrolRoute : public UActorComponent
 public:	
 	// Sets default values for this component's properties
 	UPatrolRoute();
-
+	UFUNCTION(BlueprintCallable)
 	TArray<AActor*> GetPatrolPoints() const;
 
 private:	
