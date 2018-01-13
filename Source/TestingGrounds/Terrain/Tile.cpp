@@ -3,6 +3,9 @@
 #include "Tile.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
+#include "ActorPool.h"
+#include "Engine/World.h"
+#include "AI/Navigation/NavigationSystem.h"
 
 // Sets default values
 ATile::ATile()
@@ -10,12 +13,25 @@ ATile::ATile()
  	// Set this actor to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
+	NavigationBoundsOffset = FVector(2000, 0, 0);
+
+	MinExtent = FVector(0, -2000, 0);
+	MaxExtent = FVector(4000, 2000, 0);
 }
 
 // Called when the game starts or when spawned
 void ATile::BeginPlay()
 {
 	Super::BeginPlay();
+}
+
+void ATile::EndPlay(const EEndPlayReason::Type EndPlayReason)
+{
+	UE_LOG(LogTemp, Warning, TEXT("[%s] EndPlay"), *(this->GetName()));
+	if (NavMeshBoundsVolume == nullptr) {
+		return;
+	}
+	Pool->Return(NavMeshBoundsVolume);
 }
 
 // Called every frame
@@ -59,9 +75,7 @@ bool ATile::CanSpawnAtLocation(FVector Location, float Radius)
 
 bool ATile::FindEmptyLocation(FVector& OutLocation, float Radius)
 {
-	FVector Min(0, -2000, 0);
-	FVector Max(4000, 2000, 0);
-	FBox Bounds(Min, Max);
+	FBox Bounds(MinExtent, MaxExtent);
 	const int MAX_ATTEMPTS = 100;
 	for (size_t i = 0; i < MAX_ATTEMPTS; i++)
 	{
@@ -83,4 +97,26 @@ void ATile::PlaceActor(TSubclassOf<AActor> ToSpawn, FVector SpawnPoint, float Ro
 	Spawned->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
 	Spawned->SetActorRotation(FRotator(0, Rotation, 0));
 	Spawned->SetActorScale3D(FVector(Scale));
+}
+
+void ATile::SetPool(UActorPool* InPool)
+{
+	UE_LOG(LogTemp, Warning, TEXT("[%s] Setting Pool %s"), *(this->GetName()), *(InPool->GetName()));
+	Pool = InPool;
+
+	PositionNavMeshBoundsVolume();
+}
+
+void ATile::PositionNavMeshBoundsVolume()
+{
+	NavMeshBoundsVolume = Pool->Checkout();
+	if (NavMeshBoundsVolume == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("Not enough actors in pool"));
+		return;
+	}
+	UE_LOG(LogTemp, Warning, TEXT("[%s] checked out: %s"), *GetName(), *NavMeshBoundsVolume->GetName());
+	NavMeshBoundsVolume->SetActorLocation(GetActorLocation() + NavigationBoundsOffset);
+
+	GetWorld()->GetNavigationSystem()->Build();
 }
