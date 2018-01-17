@@ -28,7 +28,7 @@ void ATile::BeginPlay()
 void ATile::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	UE_LOG(LogTemp, Warning, TEXT("[%s] EndPlay"), *(this->GetName()));
-	if (NavMeshBoundsVolume == nullptr) {
+	if (NavMeshBoundsVolume == nullptr || Pool == nullptr) {
 		return;
 	}
 	Pool->Return(NavMeshBoundsVolume);
@@ -70,15 +70,16 @@ void ATile::PlaceAIPawns(TSubclassOf<APawn> ToSpawn, int MinSpawn, int MaxSpawn,
 
 void ATile::PlaceActor(TSubclassOf<APawn> ToSpawn, FSpawnPosition SpawnPosition)
 {
-	APawn* Spawned = GetWorld()->SpawnActor<APawn>(ToSpawn);
+	FRotator Rotation = FRotator(0, SpawnPosition.Rotation, 0);
+	APawn* Spawned = GetWorld()->SpawnActor<APawn>(ToSpawn, SpawnPosition.Location, Rotation);
 	if (Spawned == nullptr) {
 		UE_LOG(LogTemp, Warning, TEXT("PlaceAIPawn: couldn't spawn a pawn"));
 		return;
 	}
 	Spawned->GetRootComponent()->SetMobility(EComponentMobility::Movable);
-	Spawned->SetActorRelativeLocation(SpawnPosition.Location);
+	//Spawned->SetActorRelativeLocation(SpawnPosition.Location);
 	Spawned->AttachToActor(this, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false));
-	Spawned->SetActorRotation(FRotator(0, SpawnPosition.Rotation, 0));
+	//Spawned->SetActorRotation(Rotation);
 	Spawned->SpawnDefaultController();
 	Spawned->Tags.Add(FName("Enemy"));
 }
